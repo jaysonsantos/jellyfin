@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -78,6 +79,8 @@ namespace MediaBrowser.Controller.Entities
             Model.Entities.ExtraType.Sample,
             Model.Entities.ExtraType.Scene
         };
+
+        private readonly ActivitySource _activitySource = new("MediaBrowser.Controller.Entities.BaseItem");
 
         private string _sortName;
 
@@ -1274,6 +1277,10 @@ namespace MediaBrowser.Controller.Entities
         /// <returns>true if a provider reports we changed.</returns>
         public async Task<ItemUpdateType> RefreshMetadata(MetadataRefreshOptions options, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
+            activity?.AddBaggage("metadataRefreshMode", options.MetadataRefreshMode.ToString());
+            activity?.AddBaggage("imageRefreshMode", options.ImageRefreshMode.ToString());
+
             TriggerOnRefreshStart();
 
             var requiresSave = false;
@@ -1363,6 +1370,7 @@ namespace MediaBrowser.Controller.Entities
         /// <returns><c>true</c> if any items have changed, else <c>false</c>.</returns>
         protected virtual async Task<bool> RefreshedOwnedItems(MetadataRefreshOptions options, IReadOnlyList<FileSystemMetadata> fileSystemChildren, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             if (!IsFileProtocol || !SupportsOwnedItems || IsInMixedFolder || this is ICollectionFolder or UserRootFolder or AggregateFolder || this.GetType() == typeof(Folder))
             {
                 return false;
@@ -1373,6 +1381,7 @@ namespace MediaBrowser.Controller.Entities
 
         protected virtual FileSystemMetadata[] GetFileSystemChildren(IDirectoryService directoryService)
         {
+            using var activity = _activitySource.StartActivity();
             var path = ContainingFolderPath;
 
             return directoryService.GetFileSystemEntries(path);
@@ -1380,6 +1389,7 @@ namespace MediaBrowser.Controller.Entities
 
         private async Task<bool> RefreshExtras(BaseItem item, MetadataRefreshOptions options, IReadOnlyList<FileSystemMetadata> fileSystemChildren, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             var extras = LibraryManager.FindExtras(item, fileSystemChildren, options.DirectoryService).ToArray();
             var newExtraIds = extras.Select(i => i.Id).ToArray();
             var extrasChanged = !item.ExtraIds.SequenceEqual(newExtraIds);

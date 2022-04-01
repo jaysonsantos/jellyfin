@@ -23,7 +23,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
+using Serilog.Enrichers.Span;
 using Serilog.Extensions.Logging;
 using SQLitePCL;
 using static MediaBrowser.Controller.Extensions.ConfigurationExtensions;
@@ -350,6 +353,24 @@ namespace Jellyfin.Server
                 .UseSerilog()
                 .ConfigureServices(services =>
                 {
+                    services.AddOpenTelemetryTracing((builder) =>
+                    {
+                        var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString();
+                        var resourceBuilder = ResourceBuilder.CreateDefault()
+                            .AddService("Jellyfin", serviceVersion: serviceVersion ?? "unknown")
+                            .AddAttributes(new Dictionary<string, object>
+                            {
+                                ["host.name"] = Environment.MachineName,
+                            });
+                        builder
+                            .SetResourceBuilder(resourceBuilder)
+                            .AddAspNetCoreInstrumentation()
+                            .AddHttpClientInstrumentation()
+                            .AddSqlClientInstrumentation()
+                            .AddSource("Emby.*")
+                            .AddOtlpExporter();
+                        // .AddConsoleExporter();
+                    });
                     // Merge the external ServiceCollection into ASP.NET DI
                     services.Add(serviceCollection);
                 })
@@ -598,7 +619,9 @@ namespace Jellyfin.Server
             {
                 // Serilog.Log is used by SerilogLoggerFactory when no logger is specified
                 Log.Logger = new LoggerConfiguration()
+                    .WriteTo.Console()
                     .ReadFrom.Configuration(configuration)
+                    .Enrich.WithSpan()
                     .Enrich.FromLogContext()
                     .Enrich.WithThreadId()
                     .CreateLogger();
@@ -613,11 +636,13 @@ namespace Jellyfin.Server
                         outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] [{ThreadId}] {SourceContext}: {Message}{NewLine}{Exception}",
                         encoding: Encoding.UTF8))
                     .Enrich.FromLogContext()
+                    .Enrich.WithSpan()
                     .Enrich.WithThreadId()
                     .CreateLogger();
 
                 Log.Logger.Fatal(ex, "Failed to create/read logger configuration");
             }
+            _logger.LogWarning("logger initialized {@Logger}", Log.Logger);
         }
 
         private static void StartNewInstance(StartupOptions options)

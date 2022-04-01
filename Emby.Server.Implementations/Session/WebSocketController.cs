@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Threading;
@@ -19,6 +20,7 @@ namespace Emby.Server.Implementations.Session
         private readonly ILogger<WebSocketController> _logger;
         private readonly ISessionManager _sessionManager;
         private readonly SessionInfo _session;
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Session.WebSocketController");
 
         private readonly List<IWebSocketConnection> _sockets;
         private bool _disposed = false;
@@ -69,6 +71,10 @@ namespace Emby.Server.Implementations.Session
             T data,
             CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity("SendMessage", kind: ActivityKind.Producer);
+            activity?.AddBaggage("type", name.ToString());
+            activity?.AddBaggage("id", messageId.ToString());
+
             var socket = GetActiveSockets()
                 .OrderByDescending(i => i.LastActivityDate)
                 .FirstOrDefault();
@@ -100,6 +106,8 @@ namespace Emby.Server.Implementations.Session
             {
                 socket.Closed -= OnConnectionClosed;
             }
+
+            _activitySource.Dispose();
 
             _disposed = true;
         }

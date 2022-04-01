@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Jellyfin.Data.Entities;
 using Jellyfin.Data.Enums;
@@ -24,6 +25,7 @@ namespace Emby.Server.Implementations.TV
         private readonly IUserDataManager _userDataManager;
         private readonly ILibraryManager _libraryManager;
         private readonly IServerConfigurationManager _configurationManager;
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.TV.TVSeriesManager");
 
         public TVSeriesManager(IUserManager userManager, IUserDataManager userDataManager, ILibraryManager libraryManager, IServerConfigurationManager configurationManager)
         {
@@ -84,6 +86,8 @@ namespace Emby.Server.Implementations.TV
 
         public QueryResult<BaseItem> GetNextUp(NextUpQuery request, BaseItem[] parentsFolders, DtoOptions options)
         {
+            using var activity = _activitySource.StartActivity();
+            activity?.AddBaggage("userId", request.UserId.ToString());
             var user = _userManager.GetUserById(request.UserId);
 
             if (user == null)

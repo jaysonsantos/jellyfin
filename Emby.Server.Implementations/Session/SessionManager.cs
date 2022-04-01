@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -56,6 +57,7 @@ namespace Emby.Server.Implementations.Session
         private readonly IMediaSourceManager _mediaSourceManager;
         private readonly IServerApplicationHost _appHost;
         private readonly IDeviceManager _deviceManager;
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Session.SessionManager");
 
         /// <summary>
         /// The active connections.
@@ -177,6 +179,7 @@ namespace Emby.Server.Implementations.Session
             if (disposing)
             {
                 _idleTimer?.Dispose();
+                _activitySource.Dispose();
             }
 
             _idleTimer = null;
@@ -722,6 +725,7 @@ namespace Emby.Server.Implementations.Session
         /// <param name="item">The item.</param>
         private void OnPlaybackStart(User user, BaseItem item)
         {
+            using var activity = _activitySource.StartActivity();
             var data = _userDataManager.GetUserData(user, item);
 
             data.PlayCount++;
@@ -753,6 +757,7 @@ namespace Emby.Server.Implementations.Session
         /// <returns>Task.</returns>
         public async Task OnPlaybackProgress(PlaybackProgressInfo info, bool isAutomated)
         {
+            using var activity = _activitySource.StartActivity();
             CheckDisposed();
 
             if (info == null)
@@ -809,6 +814,10 @@ namespace Emby.Server.Implementations.Session
 
         private void OnPlaybackProgress(User user, BaseItem item, PlaybackProgressInfo info)
         {
+            using var activity = _activitySource.StartActivity();
+            activity?.SetBaggage("user", user.Username);
+            activity?.SetBaggage("item", item.Name);
+
             var data = _userDataManager.GetUserData(user, item);
 
             var positionTicks = info.PositionTicks;

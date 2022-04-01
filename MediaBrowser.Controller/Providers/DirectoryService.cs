@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using MediaBrowser.Model.IO;
 
@@ -17,6 +18,7 @@ namespace MediaBrowser.Controller.Providers
         private readonly ConcurrentDictionary<string, FileSystemMetadata> _fileCache = new(StringComparer.Ordinal);
 
         private readonly ConcurrentDictionary<string, List<string>> _filePathCache = new(StringComparer.Ordinal);
+        private readonly ActivitySource _activitySource = new("MediaBrowser.Controller.Providers.DirectoryService");
 
         public DirectoryService(IFileSystem fileSystem)
         {
@@ -25,6 +27,7 @@ namespace MediaBrowser.Controller.Providers
 
         public FileSystemMetadata[] GetFileSystemEntries(string path)
         {
+            using var activity = _activitySource.StartActivity();
             return _cache.GetOrAdd(path, static (p, fileSystem) => fileSystem.GetFileSystemEntries(p).ToArray(), _fileSystem);
         }
 

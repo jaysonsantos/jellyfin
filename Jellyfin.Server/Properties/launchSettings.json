@@ -2,28 +2,38 @@
   "profiles": {
     "Jellyfin.Server": {
       "commandName": "Project",
-      "launchBrowser": true,
-      "applicationUrl": "http://localhost:8096",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector.default.svc.cluster.local:4317"
+      },
+      "applicationUrl": "http://localhost:8096"
+    },
+    "Jellyfin.Server (nowebclient)": {
+      "commandName": "Project",
+      "commandLineArgs": "--nowebclient",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "Jellyfin.Server (nowebclient)": {
-      "commandName": "Project",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "commandLineArgs": "--nowebclient"
-    },
     "Jellyfin.Server (API Docs)": {
       "commandName": "Project",
+      "commandLineArgs": "--nowebclient",
       "launchBrowser": true,
       "launchUrl": "api-docs/swagger",
-      "applicationUrl": "http://localhost:8096",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": "--nowebclient"
+      "applicationUrl": "http://localhost:8096"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "launchUrl": "http://localhost:8096",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:8096",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector.default.svc.cluster.local:4317"
+      },
+      "distributionName": ""
     }
   }
 }

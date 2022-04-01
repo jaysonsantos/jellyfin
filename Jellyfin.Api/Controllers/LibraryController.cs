@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -56,6 +57,7 @@ namespace Jellyfin.Api.Controllers
         private readonly ILibraryMonitor _libraryMonitor;
         private readonly ILogger<LibraryController> _logger;
         private readonly IServerConfigurationManager _serverConfigurationManager;
+        private readonly ActivitySource _activitySource = new("Jellyfin.Api.Controllers.LibraryController");
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LibraryController"/> class.
@@ -149,6 +151,8 @@ namespace Jellyfin.Api.Controllers
             [FromQuery] Guid? userId,
             [FromQuery] bool inheritFromParent = false)
         {
+            using var activity = _activitySource.StartActivity();
+
             var user = userId is null || userId.Value.Equals(default)
                 ? null
                 : _userManager.GetUserById(userId.Value);

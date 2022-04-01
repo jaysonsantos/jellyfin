@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -25,6 +26,8 @@ namespace Emby.Server.Implementations.Images
     public abstract class BaseDynamicImageProvider<T> : IHasItemChangeMonitor, IForcedProvider, ICustomMetadataProvider<T>, IHasOrder
         where T : BaseItem
     {
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Images.BaseDynamicImageProvider");
+
         protected BaseDynamicImageProvider(IFileSystem fileSystem, IProviderManager providerManager, IApplicationPaths applicationPaths, IImageProcessor imageProcessor)
         {
             ApplicationPaths = applicationPaths;
@@ -55,6 +58,7 @@ namespace Emby.Server.Implementations.Images
 
         public async Task<ItemUpdateType> FetchAsync(T item, MetadataRefreshOptions options, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             if (!Supports(item))
             {
                 return ItemUpdateType.None;
@@ -79,6 +83,7 @@ namespace Emby.Server.Implementations.Images
 
         protected Task<ItemUpdateType> FetchAsync(BaseItem item, ImageType imageType, MetadataRefreshOptions options, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             var image = item.GetImageInfo(imageType, 0);
 
             if (image != null)
@@ -105,6 +110,7 @@ namespace Emby.Server.Implementations.Images
             ImageType imageType,
             CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             var outputPathWithoutExtension = Path.Combine(ApplicationPaths.TempDirectory, Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
             Directory.CreateDirectory(Path.GetDirectoryName(outputPathWithoutExtension));
             string outputPath = CreateImage(item, itemsWithImages, outputPathWithoutExtension, imageType, 0);
@@ -130,11 +136,13 @@ namespace Emby.Server.Implementations.Images
 
         protected string CreateThumbCollage(BaseItem primaryItem, IEnumerable<BaseItem> items, string outputPath)
         {
+            using var activity = _activitySource.StartActivity();
             return CreateCollage(primaryItem, items, outputPath, 640, 360);
         }
 
         protected virtual IEnumerable<string> GetStripCollageImagePaths(BaseItem primaryItem, IEnumerable<BaseItem> items)
         {
+            using var activity = _activitySource.StartActivity();
             var useBackdrop = primaryItem is CollectionFolder || primaryItem is UserView;
             return items
                 .Select(i =>
@@ -168,21 +176,25 @@ namespace Emby.Server.Implementations.Images
 
         protected string CreatePosterCollage(BaseItem primaryItem, IEnumerable<BaseItem> items, string outputPath)
         {
+            using var activity = _activitySource.StartActivity();
             return CreateCollage(primaryItem, items, outputPath, 400, 600);
         }
 
         protected string CreateSquareCollage(BaseItem primaryItem, IEnumerable<BaseItem> items, string outputPath)
         {
+            using var activity = _activitySource.StartActivity();
             return CreateCollage(primaryItem, items, outputPath, 600, 600);
         }
 
         protected string CreateThumbCollage(BaseItem primaryItem, IEnumerable<BaseItem> items, string outputPath, int width, int height)
         {
+            using var activity = _activitySource.StartActivity();
             return CreateCollage(primaryItem, items, outputPath, width, height);
         }
 
         private string CreateCollage(BaseItem primaryItem, IEnumerable<BaseItem> items, string outputPath, int width, int height)
         {
+            using var activity = _activitySource.StartActivity();
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
 
             var options = new ImageCollageOptions
@@ -214,6 +226,7 @@ namespace Emby.Server.Implementations.Images
             ImageType imageType,
             int imageIndex)
         {
+            using var activity = _activitySource.StartActivity();
             if (itemsWithImages.Count == 0)
             {
                 return null;
@@ -297,6 +310,7 @@ namespace Emby.Server.Implementations.Images
 
         protected string CreateSingleImage(IEnumerable<BaseItem> itemsWithImages, string outputPathWithoutExtension, ImageType imageType)
         {
+            using var activity = _activitySource.StartActivity();
             var image = itemsWithImages
                 .Where(i => i.HasImage(imageType) && i.GetImageInfo(imageType, 0).IsLocalFile && Path.HasExtension(i.GetImagePath(imageType)))
                 .Select(i => i.GetImagePath(imageType))

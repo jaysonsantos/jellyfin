@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Net;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 using Photo = MediaBrowser.Controller.Entities.Photo;
 
 namespace Emby.Drawing
@@ -37,6 +39,8 @@ namespace Emby.Drawing
         private readonly IServerApplicationPaths _appPaths;
         private readonly IImageEncoder _imageEncoder;
         private readonly IMediaEncoder _mediaEncoder;
+
+        private readonly ActivitySource _activitySource = new("Emby.Drawing.ImageProcessor");
 
         private bool _disposed;
 
@@ -119,101 +123,108 @@ namespace Emby.Drawing
         /// <inheritdoc />
         public async Task<(string Path, string? MimeType, DateTime DateModified)> ProcessImage(ImageProcessingOptions options)
         {
-            ItemImageInfo originalImage = options.Image;
-            BaseItem item = options.Item;
-
-            string originalImagePath = originalImage.Path;
-            DateTime dateModified = originalImage.DateModified;
-            ImageDimensions? originalImageSize = null;
-            if (originalImage.Width > 0 && originalImage.Height > 0)
+            using (var activity = _activitySource.StartActivity())
             {
-                originalImageSize = new ImageDimensions(originalImage.Width, originalImage.Height);
-            }
+                activity?.AddBaggage("image", options.Image.Path);
+                activity?.AddBaggage("item", options.Item.Name);
 
-            var mimeType = MimeTypes.GetMimeType(originalImagePath);
-            if (!_imageEncoder.SupportsImageEncoding)
-            {
-                return (originalImagePath, mimeType, dateModified);
-            }
+                ItemImageInfo originalImage = options.Image;
+                BaseItem item = options.Item;
 
-            var supportedImageInfo = await GetSupportedImage(originalImagePath, dateModified).ConfigureAwait(false);
-            originalImagePath = supportedImageInfo.Path;
-
-            // Original file doesn't exist, or original file is gif.
-            if (!File.Exists(originalImagePath) || string.Equals(mimeType, MediaTypeNames.Image.Gif, StringComparison.OrdinalIgnoreCase))
-            {
-                return (originalImagePath, mimeType, dateModified);
-            }
-
-            dateModified = supportedImageInfo.DateModified;
-            bool requiresTransparency = _transparentImageTypes.Contains(Path.GetExtension(originalImagePath));
-
-            bool autoOrient = false;
-            ImageOrientation? orientation = null;
-            if (item is Photo photo)
-            {
-                if (photo.Orientation.HasValue)
+                string originalImagePath = originalImage.Path;
+                DateTime dateModified = originalImage.DateModified;
+                ImageDimensions? originalImageSize = null;
+                if (originalImage.Width > 0 && originalImage.Height > 0)
                 {
-                    if (photo.Orientation.Value != ImageOrientation.TopLeft)
+                    originalImageSize = new ImageDimensions(originalImage.Width, originalImage.Height);
+                }
+
+                var mimeType = MimeTypes.GetMimeType(originalImagePath);
+                if (!_imageEncoder.SupportsImageEncoding)
+                {
+                    return (originalImagePath, mimeType, dateModified);
+                }
+
+                var supportedImageInfo = await GetSupportedImage(originalImagePath, dateModified).ConfigureAwait(false);
+                originalImagePath = supportedImageInfo.Path;
+
+                // Original file doesn't exist, or original file is gif.
+                if (!File.Exists(originalImagePath) || string.Equals(mimeType, MediaTypeNames.Image.Gif, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (originalImagePath, mimeType, dateModified);
+                }
+
+                dateModified = supportedImageInfo.DateModified;
+                bool requiresTransparency = _transparentImageTypes.Contains(Path.GetExtension(originalImagePath));
+
+                bool autoOrient = false;
+                ImageOrientation? orientation = null;
+                if (item is Photo photo)
+                {
+                    if (photo.Orientation.HasValue)
                     {
+                        if (photo.Orientation.Value != ImageOrientation.TopLeft)
+                        {
+                            autoOrient = true;
+                            orientation = photo.Orientation;
+                        }
+                    }
+                    else
+                    {
+                        // Orientation unknown, so do it
                         autoOrient = true;
                         orientation = photo.Orientation;
                     }
                 }
-                else
+
+                if (options.HasDefaultOptions(originalImagePath, originalImageSize) && (!autoOrient || !options.RequiresAutoOrientation))
                 {
-                    // Orientation unknown, so do it
-                    autoOrient = true;
-                    orientation = photo.Orientation;
+                    // Just spit out the original file if all the options are default
+                    return (originalImagePath, MimeTypes.GetMimeType(originalImagePath), dateModified);
                 }
-            }
 
-            if (options.HasDefaultOptions(originalImagePath, originalImageSize) && (!autoOrient || !options.RequiresAutoOrientation))
-            {
-                // Just spit out the original file if all the options are default
-                return (originalImagePath, MimeTypes.GetMimeType(originalImagePath), dateModified);
-            }
+                int quality = options.Quality;
 
-            int quality = options.Quality;
+                ImageFormat outputFormat = GetOutputFormat(options.SupportedOutputFormats, requiresTransparency);
+                string cacheFilePath = GetCacheFilePath(
+                    originalImagePath,
+                    options.Width,
+                    options.Height,
+                    options.MaxWidth,
+                    options.MaxHeight,
+                    options.FillWidth,
+                    options.FillHeight,
+                    quality,
+                    dateModified,
+                    outputFormat,
+                    options.AddPlayedIndicator,
+                    options.PercentPlayed,
+                    options.UnplayedCount,
+                    options.Blur,
+                    options.BackgroundColor,
+                    options.ForegroundLayer);
 
-            ImageFormat outputFormat = GetOutputFormat(options.SupportedOutputFormats, requiresTransparency);
-            string cacheFilePath = GetCacheFilePath(
-                originalImagePath,
-                options.Width,
-                options.Height,
-                options.MaxWidth,
-                options.MaxHeight,
-                options.FillWidth,
-                options.FillHeight,
-                quality,
-                dateModified,
-                outputFormat,
-                options.AddPlayedIndicator,
-                options.PercentPlayed,
-                options.UnplayedCount,
-                options.Blur,
-                options.BackgroundColor,
-                options.ForegroundLayer);
-
-            try
-            {
-                if (!File.Exists(cacheFilePath))
+                try
                 {
-                    string resultPath = _imageEncoder.EncodeImage(originalImagePath, dateModified, cacheFilePath, autoOrient, orientation, quality, options, outputFormat);
-
-                    if (string.Equals(resultPath, originalImagePath, StringComparison.OrdinalIgnoreCase))
+                    if (!File.Exists(cacheFilePath))
                     {
-                        return (originalImagePath, MimeTypes.GetMimeType(originalImagePath), dateModified);
-                    }
-                }
+                        string resultPath = _imageEncoder.EncodeImage(originalImagePath, dateModified, cacheFilePath, autoOrient, orientation, quality, options, outputFormat);
 
-                return (cacheFilePath, GetMimeType(outputFormat, cacheFilePath), _fileSystem.GetLastWriteTimeUtc(cacheFilePath));
-            }
-            catch (Exception ex)
-            {
-                // If it fails for whatever reason, return the original image
-                _logger.LogError(ex, "Error encoding image");
-                return (originalImagePath, MimeTypes.GetMimeType(originalImagePath), dateModified);
+                        if (string.Equals(resultPath, originalImagePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return (originalImagePath, MimeTypes.GetMimeType(originalImagePath), dateModified);
+                        }
+                    }
+
+                    return (cacheFilePath, GetMimeType(outputFormat, cacheFilePath), _fileSystem.GetLastWriteTimeUtc(cacheFilePath));
+                }
+                catch (Exception ex)
+                {
+                    // If it fails for whatever reason, return the original image
+                    _logger.LogError(ex, "Error encoding image");
+                    activity?.RecordException(ex);
+                    return (originalImagePath, MimeTypes.GetMimeType(originalImagePath), dateModified);
+                }
             }
         }
 
@@ -419,12 +430,7 @@ namespace Emby.Drawing
         /// <inheritdoc />
         public string GetImageCacheTag(BaseItem item, ChapterInfo chapter)
         {
-            return GetImageCacheTag(item, new ItemImageInfo
-            {
-                Path = chapter.ImagePath,
-                Type = ImageType.Chapter,
-                DateModified = chapter.ImageDateModified
-            });
+            return GetImageCacheTag(item, new ItemImageInfo { Path = chapter.ImagePath, Type = ImageType.Chapter, DateModified = chapter.ImageDateModified });
         }
 
         /// <inheritdoc />
@@ -441,45 +447,48 @@ namespace Emby.Drawing
 
         private async Task<(string Path, DateTime DateModified)> GetSupportedImage(string originalImagePath, DateTime dateModified)
         {
-            var inputFormat = Path.GetExtension(originalImagePath)
-                .TrimStart('.')
-                .Replace("jpeg", "jpg", StringComparison.OrdinalIgnoreCase);
-
-            // These are just jpg files renamed as tbn
-            if (string.Equals(inputFormat, "tbn", StringComparison.OrdinalIgnoreCase))
+            using (_activitySource.StartActivity())
             {
+                var inputFormat = Path.GetExtension(originalImagePath)
+                    .TrimStart('.')
+                    .Replace("jpeg", "jpg", StringComparison.OrdinalIgnoreCase);
+
+                // These are just jpg files renamed as tbn
+                if (string.Equals(inputFormat, "tbn", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (originalImagePath, dateModified);
+                }
+
+                if (!_imageEncoder.SupportedInputFormats.Contains(inputFormat))
+                {
+                    try
+                    {
+                        string filename = (originalImagePath + dateModified.Ticks.ToString(CultureInfo.InvariantCulture)).GetMD5().ToString("N", CultureInfo.InvariantCulture);
+
+                        string cacheExtension = _mediaEncoder.SupportsEncoder("libwebp") ? ".webp" : ".png";
+                        var outputPath = Path.Combine(_appPaths.ImageCachePath, "converted-images", filename + cacheExtension);
+
+                        var file = _fileSystem.GetFileInfo(outputPath);
+                        if (!file.Exists)
+                        {
+                            await _mediaEncoder.ConvertImage(originalImagePath, outputPath).ConfigureAwait(false);
+                            dateModified = _fileSystem.GetLastWriteTimeUtc(outputPath);
+                        }
+                        else
+                        {
+                            dateModified = file.LastWriteTimeUtc;
+                        }
+
+                        originalImagePath = outputPath;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Image conversion failed for {Path}", originalImagePath);
+                    }
+                }
+
                 return (originalImagePath, dateModified);
             }
-
-            if (!_imageEncoder.SupportedInputFormats.Contains(inputFormat))
-            {
-                try
-                {
-                    string filename = (originalImagePath + dateModified.Ticks.ToString(CultureInfo.InvariantCulture)).GetMD5().ToString("N", CultureInfo.InvariantCulture);
-
-                    string cacheExtension = _mediaEncoder.SupportsEncoder("libwebp") ? ".webp" : ".png";
-                    var outputPath = Path.Combine(_appPaths.ImageCachePath, "converted-images", filename + cacheExtension);
-
-                    var file = _fileSystem.GetFileInfo(outputPath);
-                    if (!file.Exists)
-                    {
-                        await _mediaEncoder.ConvertImage(originalImagePath, outputPath).ConfigureAwait(false);
-                        dateModified = _fileSystem.GetLastWriteTimeUtc(outputPath);
-                    }
-                    else
-                    {
-                        dateModified = file.LastWriteTimeUtc;
-                    }
-
-                    originalImagePath = outputPath;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Image conversion failed for {Path}", originalImagePath);
-                }
-            }
-
-            return (originalImagePath, dateModified);
         }
 
         /// <summary>

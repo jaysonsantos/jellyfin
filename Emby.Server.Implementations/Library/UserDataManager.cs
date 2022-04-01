@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
 using Jellyfin.Data.Entities;
@@ -31,6 +32,7 @@ namespace Emby.Server.Implementations.Library
         private readonly IServerConfigurationManager _config;
         private readonly IUserManager _userManager;
         private readonly IUserDataRepository _repository;
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Library.UserDataManager");
 
         public UserDataManager(
             IServerConfigurationManager config,
@@ -53,6 +55,7 @@ namespace Emby.Server.Implementations.Library
 
         public void SaveUserData(User user, BaseItem item, UserItemData userData, UserDataSaveReason reason, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             if (userData == null)
             {
                 throw new ArgumentNullException(nameof(userData));
@@ -121,6 +124,7 @@ namespace Emby.Server.Implementations.Library
 
         public UserItemData GetUserData(User user, Guid itemId, List<string> keys)
         {
+            using var activity = _activitySource.StartActivity();
             var userId = user.InternalId;
 
             var cacheKey = GetCacheKey(userId, itemId);

@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -47,6 +48,8 @@ namespace Emby.Dlna.PlayTo
         private readonly string _accessToken;
 
         private readonly List<PlaylistItem> _playlist = new List<PlaylistItem>();
+        private readonly ActivitySource _activitySource = new("Emby.Dlna.PlayTo.PlayToController");
+
         private Device _device;
         private int _currentPlaylistIndex;
 
@@ -283,6 +286,7 @@ namespace Emby.Dlna.PlayTo
 
         private async void OnDevicePlaybackProgress(object sender, PlaybackProgressEventArgs e)
         {
+            using var activity = _activitySource.StartActivity();
             if (_disposed)
             {
                 return;

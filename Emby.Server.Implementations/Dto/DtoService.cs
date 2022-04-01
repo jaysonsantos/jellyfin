@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -25,6 +26,7 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 using Book = MediaBrowser.Controller.Entities.Book;
 using Episode = MediaBrowser.Controller.Entities.TV.Episode;
 using Movie = MediaBrowser.Controller.Entities.Movies.Movie;
@@ -49,6 +51,8 @@ namespace Emby.Server.Implementations.Dto
         private readonly IApplicationHost _appHost;
         private readonly IMediaSourceManager _mediaSourceManager;
         private readonly Lazy<ILiveTvManager> _livetvManagerFactory;
+
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Dto.DtoService");
 
         public DtoService(
             ILogger<DtoService> logger,
@@ -130,14 +134,17 @@ namespace Emby.Server.Implementations.Dto
 
         public BaseItemDto GetBaseItemDto(BaseItem item, DtoOptions options, User user = null, BaseItem owner = null)
         {
+            using var activity = _activitySource.StartActivity();
+            activity?.AddBaggage("item", item.Name);
+            activity?.AddBaggage("user", user?.Username);
             var dto = GetBaseItemDtoInternal(item, options, user, owner);
             if (item is LiveTvChannel tvChannel)
             {
-                LivetvManager.AddChannelInfo(new[] { (dto, tvChannel) }, options, user);
+                LivetvManager.AddChannelInfo(new[] {(dto, tvChannel)}, options, user);
             }
             else if (item is LiveTvProgram)
             {
-                LivetvManager.AddInfoToProgramDto(new[] { (item, dto) }, options.Fields, user).GetAwaiter().GetResult();
+                LivetvManager.AddInfoToProgramDto(new[] {(item, dto)}, options.Fields, user).GetAwaiter().GetResult();
             }
 
             if (item is IItemByName itemByName
@@ -1387,6 +1394,7 @@ namespace Emby.Server.Implementations.Dto
 
         public double? GetPrimaryImageAspectRatio(BaseItem item)
         {
+            using var activity = _activitySource.StartActivity();
             var imageInfo = item.GetImageInfo(ImageType.Primary, 0);
 
             if (imageInfo == null)
@@ -1411,6 +1419,7 @@ namespace Emby.Server.Implementations.Dto
             }
             catch (Exception ex)
             {
+                activity?.RecordException(ex);
                 _logger.LogError(ex, "Failed to determine primary image aspect ratio for {ImagePath}", imageInfo.Path);
             }
 

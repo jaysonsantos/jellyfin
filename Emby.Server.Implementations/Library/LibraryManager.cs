@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -88,10 +89,13 @@ namespace Emby.Server.Implementations.Library
 
         private readonly TimeSpan _viewRefreshInterval = TimeSpan.FromHours(24);
 
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Library.LibraryManager");
+
         /// <summary>
         /// The _root folder.
         /// </summary>
         private volatile AggregateFolder _rootFolder;
+
         private volatile UserRootFolder _userRootFolder;
 
         private bool _wizardCompleted;
@@ -1794,6 +1798,7 @@ namespace Emby.Server.Implementations.Library
         /// <param name="cancellationToken">The cancellation token.</param>
         public void CreateItems(IReadOnlyList<BaseItem> items, BaseItem parent, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             _itemRepository.SaveItems(items, cancellationToken);
 
             foreach (var item in items)
@@ -2021,11 +2026,13 @@ namespace Emby.Server.Implementations.Library
         /// <returns>BaseItem.</returns>
         public BaseItem RetrieveItem(Guid id)
         {
+            using var activity = _activitySource.StartActivity();
             return _itemRepository.RetrieveItem(id);
         }
 
         public List<Folder> GetCollectionFolders(BaseItem item)
         {
+            using var activity = _activitySource.StartActivity();
             while (item != null)
             {
                 var parent = item.GetParent();
@@ -2048,6 +2055,7 @@ namespace Emby.Server.Implementations.Library
 
         public List<Folder> GetCollectionFolders(BaseItem item, List<Folder> allUserRootChildren)
         {
+            using var activity = _activitySource.StartActivity();
             while (item != null)
             {
                 var parent = item.GetParent();
@@ -2232,6 +2240,7 @@ namespace Emby.Server.Implementations.Library
             string viewType,
             string sortName)
         {
+            using var activity = _activitySource.StartActivity();
             var parentIdString = parentId.Equals(default)
                 ? null
                 : parentId.ToString("N", CultureInfo.InvariantCulture);
@@ -2636,6 +2645,7 @@ namespace Emby.Server.Implementations.Library
 
         public IEnumerable<BaseItem> FindExtras(BaseItem owner, IReadOnlyList<FileSystemMetadata> fileSystemChildren, IDirectoryService directoryService)
         {
+            using var activity = _activitySource.StartActivity();
             var ownerVideoInfo = VideoResolver.Resolve(owner.Path, owner.IsFolder, _namingOptions);
             if (ownerVideoInfo == null)
             {

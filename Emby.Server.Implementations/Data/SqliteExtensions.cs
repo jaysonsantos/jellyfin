@@ -13,6 +13,7 @@ namespace Emby.Server.Implementations.Data
     {
         private const string DatetimeFormatUtc = "yyyy-MM-dd HH:mm:ss.FFFFFFFK";
         private const string DatetimeFormatLocal = "yyyy-MM-dd HH:mm:ss.FFFFFFF";
+        private const string AttributeDbStatement = "db.statement";
 
         /// <summary>
         /// An array of ISO-8601 DateTime formats that we support parsing.
@@ -51,6 +52,8 @@ namespace Emby.Server.Implementations.Data
             "yyyyMMdd",
             "yy-MM-dd"
         };
+
+        private static readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Data.SqliteExtensions");
 
         public static void RunQueries(this SQLiteDatabaseConnection connection, string[] queries)
         {
@@ -443,6 +446,8 @@ namespace Emby.Server.Implementations.Data
 
         public static IEnumerable<IReadOnlyList<ResultSetValue>> ExecuteQuery(this IStatement statement)
         {
+            using var activity = _activitySource.StartActivity();
+            activity?.AddBaggage(AttributeDbStatement, statement.SQL);
             while (statement.MoveNext())
             {
                 yield return statement.Current;

@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using Jellyfin.Data.Entities;
@@ -18,6 +19,8 @@ namespace Emby.Server.Implementations.Data
 {
     public class SqliteUserDataRepository : BaseSqliteRepository, IUserDataRepository
     {
+        private static readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Data.SqliteUserDataRepository");
+
         public SqliteUserDataRepository(
             ILogger<SqliteUserDataRepository> logger,
             IApplicationPaths appPaths)
@@ -110,6 +113,7 @@ namespace Emby.Server.Implementations.Data
 
         private List<Guid> GetAllUserIdsWithUserData(IDatabaseConnection db)
         {
+            using var activity = _activitySource.StartActivity();
             var list = new List<Guid>();
 
             using (var statement = PrepareStatement(db, "select DISTINCT UserId from UserData where UserId not null"))
@@ -133,6 +137,7 @@ namespace Emby.Server.Implementations.Data
         /// <inheritdoc />
         public void SaveUserData(long userId, string key, UserItemData userData, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             if (userData == null)
             {
                 throw new ArgumentNullException(nameof(userData));
@@ -176,6 +181,7 @@ namespace Emby.Server.Implementations.Data
         /// <param name="cancellationToken">The cancellation token.</param>
         public void PersistUserData(long internalUserId, string key, UserItemData userData, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             cancellationToken.ThrowIfCancellationRequested();
 
             using (var connection = GetConnection())
@@ -191,6 +197,7 @@ namespace Emby.Server.Implementations.Data
 
         private static void SaveUserData(IDatabaseConnection db, long internalUserId, string key, UserItemData userData)
         {
+            using var activity = _activitySource.StartActivity();
             using (var statement = db.PrepareStatement("replace into UserDatas (key, userId, rating,played,playCount,isFavorite,playbackPositionTicks,lastPlayedDate,AudioStreamIndex,SubtitleStreamIndex) values (@key, @userId, @rating,@played,@playCount,@isFavorite,@playbackPositionTicks,@lastPlayedDate,@AudioStreamIndex,@SubtitleStreamIndex)"))
             {
                 statement.TryBind("@userId", internalUserId);
@@ -324,6 +331,7 @@ namespace Emby.Server.Implementations.Data
         /// <returns>The list of user item data.</returns>
         public List<UserItemData> GetAllUserData(long userId)
         {
+            using var activity = _activitySource.StartActivity();
             if (userId <= 0)
             {
                 throw new ArgumentNullException(nameof(userId));
@@ -331,17 +339,13 @@ namespace Emby.Server.Implementations.Data
 
             var list = new List<UserItemData>();
 
-            using (var connection = GetConnection())
-            {
-                using (var statement = connection.PrepareStatement("select key,userid,rating,played,playCount,isFavorite,playbackPositionTicks,lastPlayedDate,AudioStreamIndex,SubtitleStreamIndex from UserDatas where userId=@UserId"))
-                {
-                    statement.TryBind("@UserId", userId);
+            using var connection = GetConnection(true);
+            using var statement = connection.PrepareStatement("select key,userid,rating,played,playCount,isFavorite,playbackPositionTicks,lastPlayedDate,AudioStreamIndex,SubtitleStreamIndex from UserDatas where userId=@UserId");
+            statement.TryBind("@UserId", userId);
 
-                    foreach (var row in statement.ExecuteQuery())
-                    {
-                        list.Add(ReadRow(row));
-                    }
-                }
+            foreach (var row in statement.ExecuteQuery())
+            {
+                list.Add(ReadRow(row));
             }
 
             return list;
@@ -399,6 +403,7 @@ namespace Emby.Server.Implementations.Data
             // The write lock and connection for the item repository are shared with the user data repository
             // since they point to the same database. The item repo has responsibility for disposing these two objects,
             // so the user data repo should not attempt to dispose them as well
+            _activitySource.Dispose();
         }
 #pragma warning restore CA2215
     }

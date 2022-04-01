@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Emby.Naming.Common;
@@ -11,6 +12,8 @@ namespace Emby.Naming.Video
     /// </summary>
     public static class VideoResolver
     {
+        private static readonly ActivitySource _activitySource = new("Emby.Naming.Video.VideoResolver");
+
         /// <summary>
         /// Resolves the directory.
         /// </summary>
@@ -45,6 +48,7 @@ namespace Emby.Naming.Video
         /// <exception cref="ArgumentNullException"><c>path</c> is <c>null</c>.</exception>
         public static VideoFileInfo? Resolve(string? path, bool isDirectory, NamingOptions namingOptions, bool parseName = true)
         {
+            using var activity = _activitySource.StartActivity();
             if (string.IsNullOrEmpty(path))
             {
                 return null;

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Library;
@@ -16,6 +17,7 @@ namespace Jellyfin.Server.Implementations.Security
     {
         private readonly JellyfinDbProvider _jellyfinDbProvider;
         private readonly IUserManager _userManager;
+        private readonly ActivitySource _activitySource = new("Jellyfin.Server.Implementations.Security.AuthorizationContext");
 
         public AuthorizationContext(JellyfinDbProvider jellyfinDb, IUserManager userManager)
         {
@@ -35,6 +37,7 @@ namespace Jellyfin.Server.Implementations.Security
 
         public async Task<AuthorizationInfo> GetAuthorizationInfo(HttpRequest requestContext)
         {
+            using var activity = _activitySource.StartActivity();
             var auth = GetAuthorizationDictionary(requestContext);
             var authInfo = await GetAuthorizationInfoFromDictionary(auth, requestContext.Headers, requestContext.Query).ConfigureAwait(false);
             return authInfo;
@@ -59,6 +62,7 @@ namespace Jellyfin.Server.Implementations.Security
             IHeaderDictionary headers,
             IQueryCollection queryString)
         {
+            using var activity = _activitySource.StartActivity();
             string? deviceId = null;
             string? deviceName = null;
             string? client = null;

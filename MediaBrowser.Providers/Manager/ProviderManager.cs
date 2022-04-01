@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -61,6 +62,8 @@ namespace MediaBrowser.Providers.Manager
         private readonly CancellationTokenSource _disposeCancellationTokenSource = new CancellationTokenSource();
         private readonly SimplePriorityQueue<Tuple<Guid, MetadataRefreshOptions>> _refreshQueue =
             new SimplePriorityQueue<Tuple<Guid, MetadataRefreshOptions>>();
+
+        private readonly ActivitySource _activitySource = new("MediaBrowser.Providers.Manager.ProviderManager");
 
         private IMetadataService[] _metadataServices = Array.Empty<IMetadataService>();
         private IMetadataProvider[] _metadataProviders = Array.Empty<IMetadataProvider>();
@@ -1038,6 +1041,7 @@ namespace MediaBrowser.Providers.Manager
                 return;
             }
 
+            using var activity = _activitySource.StartActivity();
             _refreshQueue.Enqueue(new Tuple<Guid, MetadataRefreshOptions>(itemId, options), (int)priority);
 
             lock (_refreshQueueLock)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,7 @@ namespace Emby.Server.Implementations.IO
         private readonly List<IShortcutHandler> _shortcutHandlers = new List<IShortcutHandler>();
         private readonly string _tempPath;
         private static readonly bool _isEnvironmentCaseInsensitive = OperatingSystem.IsWindows();
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.IO.ManagedFileSystem");
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedFileSystem"/> class.
@@ -644,6 +646,7 @@ namespace Emby.Server.Implementations.IO
         /// <inheritdoc />
         public virtual IEnumerable<FileSystemMetadata> GetFileSystemEntries(string path, bool recursive = false)
         {
+            using var activity = _activitySource.StartActivity();
             var directoryInfo = new DirectoryInfo(path);
             var enumerationOptions = GetEnumerationOptions(recursive);
 

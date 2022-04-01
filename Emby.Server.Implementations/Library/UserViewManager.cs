@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Jellyfin.Data.Entities;
@@ -32,6 +33,7 @@ namespace Emby.Server.Implementations.Library
         private readonly IChannelManager _channelManager;
         private readonly ILiveTvManager _liveTvManager;
         private readonly IServerConfigurationManager _config;
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Library.UserViewManager");
 
         public UserViewManager(ILibraryManager libraryManager, ILocalizationManager localizationManager, IUserManager userManager, IChannelManager channelManager, ILiveTvManager liveTvManager, IServerConfigurationManager config)
         {
@@ -45,6 +47,7 @@ namespace Emby.Server.Implementations.Library
 
         public Folder[] GetUserViews(UserViewQuery query)
         {
+            using var activity = _activitySource.StartActivity();
             var user = _userManager.GetUserById(query.UserId);
 
             if (user == null)

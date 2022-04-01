@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -50,6 +51,7 @@ namespace Emby.Server.Implementations.Library
         private readonly ConcurrentDictionary<string, ILiveStream> _openStreams = new ConcurrentDictionary<string, ILiveStream>(StringComparer.OrdinalIgnoreCase);
         private readonly SemaphoreSlim _liveStreamSemaphore = new SemaphoreSlim(1, 1);
         private readonly JsonSerializerOptions _jsonOptions = JsonDefaults.Options;
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Library.MediaSourceManager");
 
         private IMediaSourceProvider[] _providers;
 
@@ -318,6 +320,7 @@ namespace Emby.Server.Implementations.Library
 
         public List<MediaSourceInfo> GetStaticMediaSources(BaseItem item, bool enablePathSubstitution, User user = null)
         {
+            using var activity = _activitySource.StartActivity();
             if (item == null)
             {
                 throw new ArgumentNullException(nameof(item));

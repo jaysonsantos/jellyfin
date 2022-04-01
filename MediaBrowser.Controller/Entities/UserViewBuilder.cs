@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using Jellyfin.Data.Entities;
@@ -27,6 +28,7 @@ namespace MediaBrowser.Controller.Entities
         private readonly ILogger<BaseItem> _logger;
         private readonly IUserDataManager _userDataManager;
         private readonly ITVSeriesManager _tvSeriesManager;
+        private static readonly ActivitySource _activitySource = new("MediaBrowser.Controller.Entities.UserViewBuilder");
 
         public UserViewBuilder(
             IUserViewManager userViewManager,
@@ -44,6 +46,7 @@ namespace MediaBrowser.Controller.Entities
 
         public QueryResult<BaseItem> GetUserItems(Folder queryParent, Folder displayParent, string viewType, InternalItemsQuery query)
         {
+            using var activity = _activitySource.StartActivity();
             var user = query.User;
 
             // if (query.IncludeItemTypes != null &&
@@ -330,6 +333,7 @@ namespace MediaBrowser.Controller.Entities
 
         private QueryResult<BaseItem> GetTvNextUp(Folder parent, InternalItemsQuery query)
         {
+            using var activity = _activitySource.StartActivity();
             var parentFolders = GetMediaFolders(parent, query.User, new[] { CollectionType.TvShows, string.Empty });
 
             var result = _tvSeriesManager.GetNextUp(
@@ -414,6 +418,7 @@ namespace MediaBrowser.Controller.Entities
             InternalItemsQuery query)
             where T : BaseItem
         {
+            using var activity = _activitySource.StartActivity();
             items = items.Where(i => Filter(i, query.User, query, _userDataManager, _libraryManager));
 
             return PostFilterAndSort(items, null, query, _libraryManager);
@@ -448,6 +453,7 @@ namespace MediaBrowser.Controller.Entities
             ILibraryManager libraryManager,
             bool enableSorting)
         {
+            using var activity = _activitySource.StartActivity();
             if (enableSorting)
             {
                 if (query.OrderBy.Count > 0)

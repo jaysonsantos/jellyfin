@@ -5,6 +5,7 @@
 using System;
 using System.Buffers.Text;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -46,6 +47,8 @@ namespace Emby.Server.Implementations.Data
         private const string FromText = " from TypedBaseItems A";
         private const string ChaptersTableName = "Chapters2";
 
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Data.SqliteItemRepository");
+
         private const string SaveItemCommandText =
             @"replace into TypedBaseItems
             (guid,type,data,Path,StartDate,EndDate,ChannelId,IsMovie,IsSeries,EpisodeTitle,IsRepeat,CommunityRating,CustomRating,IndexNumber,IsLocked,Name,OfficialRating,MediaType,Overview,ParentIndexNumber,PremiereDate,ProductionYear,ParentId,Genres,InheritedParentalRatingValue,SortName,ForcedSortName,RunTimeTicks,Size,DateCreated,DateModified,PreferredMetadataLanguage,PreferredMetadataCountryCode,Width,Height,DateLastRefreshed,DateLastSaved,IsInMixedFolder,LockedFields,Studios,Audio,ExternalServiceId,Tags,IsFolder,UnratedType,TopParentId,TrailerTypes,CriticRating,CleanName,PresentationUniqueKey,OriginalTitle,PrimaryVersionId,DateLastMediaAdded,Album,IsVirtualItem,SeriesName,UserDataKey,SeasonName,SeasonId,SeriesId,ExternalSeriesId,Tagline,ProviderIds,Images,ProductionLocations,ExtraIds,TotalBitrate,ExtraType,Artists,AlbumArtists,ExternalId,SeriesPresentationUniqueKey,ShowId,OwnerId)
@@ -53,7 +56,9 @@ namespace Emby.Server.Implementations.Data
 
         private readonly IServerConfigurationManager _config;
         private readonly IServerApplicationHost _appHost;
+
         private readonly ILocalizationManager _localization;
+
         // TODO: Remove this dependency. GetImageCacheTag() is the only method used and it can be converted to a static helper method
         private readonly IImageProcessor _imageProcessor;
 
@@ -601,6 +606,7 @@ namespace Emby.Server.Implementations.Data
         /// </exception>
         public void SaveItems(IEnumerable<BaseItem> items, CancellationToken cancellationToken)
         {
+            using var activity = _activitySource.StartActivity();
             if (items == null)
             {
                 throw new ArgumentNullException(nameof(items));
@@ -1292,6 +1298,7 @@ namespace Emby.Server.Implementations.Data
         /// <exception cref="ArgumentException"><paramr name="id"/> is <seealso cref="Guid.Empty"/>.</exception>
         public BaseItem RetrieveItem(Guid id)
         {
+            using var activity = _activitySource.StartActivity();
             if (id.Equals(default))
             {
                 throw new ArgumentException("Guid can't be empty", nameof(id));
@@ -1299,17 +1306,14 @@ namespace Emby.Server.Implementations.Data
 
             CheckDisposed();
 
-            using (var connection = GetConnection(true))
-            {
-                using (var statement = PrepareStatement(connection, _retrieveItemColumnsSelectQuery))
-                {
-                    statement.TryBind("@guid", id);
+            using var connection = GetConnection(true);
+            using var statement = PrepareStatement(connection, _retrieveItemColumnsSelectQuery);
+            activity?.AddBaggage("id", id.ToString());
+            statement.TryBind("@guid", id);
 
-                    foreach (var row in statement.ExecuteQuery())
-                    {
-                        return GetItem(row, new InternalItemsQuery());
-                    }
-                }
+            foreach (var row in statement.ExecuteQuery())
+            {
+                return GetItem(row, new InternalItemsQuery());
             }
 
             return null;
@@ -1995,18 +1999,16 @@ namespace Emby.Server.Implementations.Data
         {
             CheckDisposed();
 
-            using (var connection = GetConnection(true))
-            {
-                using (var statement = PrepareStatement(connection, "select StartPositionTicks,Name,ImagePath,ImageDateModified from " + ChaptersTableName + " where ItemId = @ItemId and ChapterIndex=@ChapterIndex"))
-                {
-                    statement.TryBind("@ItemId", item.Id);
-                    statement.TryBind("@ChapterIndex", index);
+            using var activity = _activitySource.StartActivity();
+            using var connection = GetConnection(true);
+            activity?.AddBaggage("chapter", item.Name);
+            using var statement = PrepareStatement(connection, "select StartPositionTicks,Name,ImagePath,ImageDateModified from " + ChaptersTableName + " where ItemId = @ItemId and ChapterIndex=@ChapterIndex");
+            statement.TryBind("@ItemId", item.Id);
+            statement.TryBind("@ChapterIndex", index);
 
-                    foreach (var row in statement.ExecuteQuery())
-                    {
-                        return GetChapter(row, item);
-                    }
-                }
+            foreach (var row in statement.ExecuteQuery())
+            {
+                return GetChapter(row, item);
             }
 
             return null;
@@ -2020,10 +2022,7 @@ namespace Emby.Server.Implementations.Data
         /// <returns>ChapterInfo.</returns>
         private ChapterInfo GetChapter(IReadOnlyList<ResultSetValue> reader, BaseItem item)
         {
-            var chapter = new ChapterInfo
-            {
-                StartPositionTicks = reader.GetInt64(0)
-            };
+            var chapter = new ChapterInfo {StartPositionTicks = reader.GetInt64(0)};
 
             if (reader.TryGetString(1, out var chapterName))
             {

@@ -4,15 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using Jellyfin.Extensions;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 using SQLitePCL.pretty;
 
 namespace Emby.Server.Implementations.Data
 {
     public abstract class BaseSqliteRepository : IDisposable
     {
+        private readonly ActivitySource _activitySource = new("Emby.Server.Implementations.Data.BaseSqliteRepository");
         private bool _disposed = false;
 
         /// <summary>
@@ -97,10 +101,10 @@ namespace Emby.Server.Implementations.Data
         /// </summary>
         /// <value>The write connection.</value>
         protected SQLiteDatabaseConnection WriteConnection { get; set; }
-
         protected ManagedConnection GetConnection(bool readOnly = false)
         {
-            WriteLock.Wait();
+            using var activity = _activitySource.StartActivity();
+            activity?.AddBaggage("readOnly", readOnly.ToString());
             if (WriteConnection != null)
             {
                 return new ManagedConnection(WriteConnection, WriteLock);
@@ -232,6 +236,7 @@ namespace Emby.Server.Implementations.Data
             if (dispose)
             {
                 WriteLock.Wait();
+                _activitySource.Dispose();
                 try
                 {
                     WriteConnection?.Dispose();
