@@ -314,7 +314,7 @@ namespace MediaBrowser.Controller.Entities
                 else
                 {
                     ParentId = value.Id;
-                    ParentType = value.GetBaseItemKind();
+                    ParentType = value.BaseItemKind;
                 }
             }
         }

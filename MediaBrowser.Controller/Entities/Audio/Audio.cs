@@ -62,7 +62,6 @@ namespace MediaBrowser.Controller.Entities.Audio
         /// Gets the type of the media.
         /// </summary>
         /// <value>The type of the media.</value>
-        [JsonIgnore]
         public override string MediaType => Model.Entities.MediaType.Audio;
 
         public override double GetDefaultPrimaryImageAspectRatio()

@@ -17,7 +17,6 @@ namespace MediaBrowser.Controller.Entities
             this.RunTimeTicks = TimeSpan.TicksPerSecond;
         }
 
-        [JsonIgnore]
         public override string MediaType => Model.Entities.MediaType.Book;
 
         public override bool SupportsPlayedStatus => true;

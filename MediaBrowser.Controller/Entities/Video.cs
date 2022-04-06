@@ -255,8 +255,7 @@ namespace MediaBrowser.Controller.Entities
         /// Gets the type of the media.
         /// </summary>
         /// <value>The type of the media.</value>
-        [JsonIgnore]
-        public override string MediaType => Model.Entities.MediaType.Video;
+                public override string MediaType => Model.Entities.MediaType.Video;
 
         public override List<string> GetUserDataKeys()
         {

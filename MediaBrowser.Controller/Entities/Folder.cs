@@ -52,38 +52,28 @@ namespace MediaBrowser.Controller.Entities
 
         public LinkedChild[] LinkedChildren { get; set; }
 
-        [JsonIgnore]
         public DateTime? DateLastMediaAdded { get; set; }
 
-        [JsonIgnore]
         public override bool SupportsThemeMedia => true;
 
-        [JsonIgnore]
         public virtual bool IsPreSorted => false;
 
-        [JsonIgnore]
         public virtual bool IsPhysicalRoot => false;
 
-        [JsonIgnore]
         public override bool SupportsInheritedParentImages => true;
 
-        [JsonIgnore]
         public override bool SupportsPlayedStatus => true;
 
         /// <summary>
         /// Gets a value indicating whether this instance is folder.
         /// </summary>
         /// <value><c>true</c> if this instance is folder; otherwise, <c>false</c>.</value>
-        [JsonIgnore]
         public override bool IsFolder => true;
 
-        [JsonIgnore]
         public override bool IsDisplayedAsFolder => true;
 
-        [JsonIgnore]
         public virtual bool SupportsCumulativeRunTimeTicks => false;
 
-        [JsonIgnore]
         public virtual bool SupportsDateLastMediaAdded => false;
 
         [JsonIgnore]

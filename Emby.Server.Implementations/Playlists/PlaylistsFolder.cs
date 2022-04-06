@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json.Serialization;
 using Jellyfin.Data.Entities;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
@@ -18,13 +17,10 @@ namespace Emby.Server.Implementations.Playlists
             Name = "Playlists";
         }
 
-        [JsonIgnore]
         public override bool IsHidden => true;
 
-        [JsonIgnore]
         public override bool SupportsInheritedParentImages => false;
 
-        [JsonIgnore]
         public override string CollectionType => MediaBrowser.Model.Entities.CollectionType.Playlists;
 
         public override bool IsVisible(User user)
@@ -53,7 +49,7 @@ namespace Emby.Server.Implementations.Playlists
 
         public override string GetClientTypeName()
         {
-            return "ManualPlaylistsFolder";
+            return BaseItemKind.ManualPlaylistsFolder.ToString();
         }
     }
 }

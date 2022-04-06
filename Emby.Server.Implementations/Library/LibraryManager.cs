@@ -1794,7 +1794,7 @@ namespace Emby.Server.Implementations.Library
         /// <param name="cancellationToken">The cancellation token.</param>
         public void CreateItems(IReadOnlyList<BaseItem> items, BaseItem parent, CancellationToken cancellationToken)
         {
-            _itemRepository.SaveItems(items, cancellationToken);
+           _itemRepository.SaveItems(items, cancellationToken);
 
             foreach (var item in items)
             {

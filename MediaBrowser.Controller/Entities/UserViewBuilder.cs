@@ -481,12 +481,12 @@ namespace MediaBrowser.Controller.Entities
                 return false;
             }
 
-            if (query.IncludeItemTypes.Length > 0 && !query.IncludeItemTypes.Contains(item.GetBaseItemKind()))
+            if (query.IncludeItemTypes.Length > 0 && !query.IncludeItemTypes.Contains(item.BaseItemKind))
             {
                 return false;
             }
 
-            if (query.ExcludeItemTypes.Length > 0 && query.ExcludeItemTypes.Contains(item.GetBaseItemKind()))
+            if (query.ExcludeItemTypes.Length > 0 && query.ExcludeItemTypes.Contains(item.BaseItemKind))
             {
                 return false;
             }

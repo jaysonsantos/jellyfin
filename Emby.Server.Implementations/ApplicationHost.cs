@@ -10,9 +10,12 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Emby.Dlna;
@@ -28,6 +31,7 @@ using Emby.Server.Implementations.Collections;
 using Emby.Server.Implementations.Configuration;
 using Emby.Server.Implementations.Cryptography;
 using Emby.Server.Implementations.Data;
+using Emby.Server.Implementations.Data.Couchdb;
 using Emby.Server.Implementations.Devices;
 using Emby.Server.Implementations.Dto;
 using Emby.Server.Implementations.HttpServer.Security;
@@ -567,10 +571,19 @@ namespace Emby.Server.Implementations
 
             serviceCollection.AddSingleton<IBlurayExaminer, BdInfoExaminer>();
 
-            serviceCollection.AddSingleton<IUserDataRepository, SqliteUserDataRepository>();
+            // TODO: Figure out a better place to initialize this
+            serviceCollection.AddHttpClient(BaseConnection.HttpClientName, (_, client) =>
+            {
+                client.BaseAddress = new Uri("http://localhost:5984");
+                // client.BaseAddress = new Uri("https://ce98-91-66-4-30.ngrok.io");
+                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:admin"));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
+            });
+            serviceCollection.AddSingleton<IConnection, Connection>();
+            serviceCollection.AddSingleton<IUserDataRepository, UserDataRepository>();
             serviceCollection.AddSingleton<IUserDataManager, UserDataManager>();
 
-            serviceCollection.AddSingleton<IItemRepository, SqliteItemRepository>();
+            serviceCollection.AddSingleton<IItemRepository, ItemRepository>();
 
             serviceCollection.AddSingleton<IMediaEncoder, MediaBrowser.MediaEncoding.Encoder.MediaEncoder>();
             serviceCollection.AddSingleton<EncodingHelper>();
@@ -652,6 +665,8 @@ namespace Emby.Server.Implementations
         /// <returns>A task representing the service initialization operation.</returns>
         public async Task InitializeServices()
         {
+            var data = Resolve<IItemRepository>().RetrieveItem(new Guid("1071671e7bffa0532e930debee501d2e"));
+
             var localizationManager = (LocalizationManager)Resolve<ILocalizationManager>();
             await localizationManager.LoadAll().ConfigureAwait(false);
 
@@ -659,9 +674,6 @@ namespace Emby.Server.Implementations
             _sessionManager = Resolve<ISessionManager>();
 
             SetStaticProperties();
-
-            var userDataRepo = (SqliteUserDataRepository)Resolve<IUserDataRepository>();
-            ((SqliteItemRepository)Resolve<IItemRepository>()).Initialize(userDataRepo, Resolve<IUserManager>());
 
             FindParts();
         }

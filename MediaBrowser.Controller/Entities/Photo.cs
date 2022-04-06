@@ -12,8 +12,7 @@ namespace MediaBrowser.Controller.Entities
         [JsonIgnore]
         public override bool SupportsLocalMetadata => false;
 
-        [JsonIgnore]
-        public override string MediaType => Model.Entities.MediaType.Photo;
+                public override string MediaType => Model.Entities.MediaType.Photo;
 
         [JsonIgnore]
         public override Folder LatestItemsIndexContainer => AlbumEntity;

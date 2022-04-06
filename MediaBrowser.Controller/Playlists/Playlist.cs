@@ -79,8 +79,7 @@ namespace MediaBrowser.Controller.Playlists
 
         public string PlaylistMediaType { get; set; }
 
-        [JsonIgnore]
-        public override string MediaType => PlaylistMediaType;
+                public override string MediaType => PlaylistMediaType;
 
         [JsonIgnore]
         private bool IsSharedItem

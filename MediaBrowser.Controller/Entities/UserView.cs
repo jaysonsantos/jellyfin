@@ -51,19 +51,15 @@ namespace MediaBrowser.Controller.Entities
         public Guid? UserId { get; set; }
 
         /// <inheritdoc />
-        [JsonIgnore]
         public string CollectionType => ViewType;
 
         /// <inheritdoc />
-        [JsonIgnore]
         public override bool SupportsInheritedParentImages => false;
 
         /// <inheritdoc />
-        [JsonIgnore]
         public override bool SupportsPlayedStatus => false;
 
         /// <inheritdoc />
-        [JsonIgnore]
         public override bool SupportsPeople => false;
 
         /// <inheritdoc />

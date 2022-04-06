@@ -729,7 +729,7 @@ namespace Jellyfin.Api.Controllers
                 // For non series and movie types these columns are typically null
                 // isSeries = null;
                 isMovie = null;
-                includeItemTypes.Add(item.GetBaseItemKind());
+                includeItemTypes.Add(item.BaseItemKind);
             }
 
             var query = new InternalItemsQuery(user)

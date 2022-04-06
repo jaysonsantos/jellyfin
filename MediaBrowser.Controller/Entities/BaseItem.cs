@@ -99,23 +99,19 @@ namespace MediaBrowser.Controller.Entities
             ExtraIds = Array.Empty<Guid>();
         }
 
-        [JsonIgnore]
         public string PreferredMetadataCountryCode { get; set; }
 
-        [JsonIgnore]
         public string PreferredMetadataLanguage { get; set; }
 
         public long? Size { get; set; }
 
         public string Container { get; set; }
 
-        [JsonIgnore]
         public string Tagline { get; set; }
 
         [JsonIgnore]
         public virtual ItemImageInfo[] ImageInfos { get; set; }
 
-        [JsonIgnore]
         public bool IsVirtualItem { get; set; }
 
         /// <summary>
@@ -129,36 +125,28 @@ namespace MediaBrowser.Controller.Entities
         /// Gets or sets the channel identifier.
         /// </summary>
         /// <value>The channel identifier.</value>
-        [JsonIgnore]
         public Guid ChannelId { get; set; }
 
-        [JsonIgnore]
         public virtual bool SupportsAddingToPlaylist => false;
 
-        [JsonIgnore]
         public virtual bool AlwaysScanInternalMetadataPath => false;
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is in mixed folder.
         /// </summary>
         /// <value><c>true</c> if this instance is in mixed folder; otherwise, <c>false</c>.</value>
-        [JsonIgnore]
         public bool IsInMixedFolder { get; set; }
 
-        [JsonIgnore]
         public virtual bool SupportsPlayedStatus => false;
 
-        [JsonIgnore]
         public virtual bool SupportsPositionTicksResume => false;
 
-        [JsonIgnore]
         public virtual bool SupportsRemoteImageDownloading => true;
 
         /// <summary>
         /// Gets or sets the name.
         /// </summary>
         /// <value>The name.</value>
-        [JsonIgnore]
         public virtual string Name
         {
             get => _name;
@@ -174,26 +162,21 @@ namespace MediaBrowser.Controller.Entities
         [JsonIgnore]
         public bool IsUnaired => PremiereDate.HasValue && PremiereDate.Value.ToLocalTime().Date >= DateTime.Now.Date;
 
-        [JsonIgnore]
         public int? TotalBitrate { get; set; }
 
-        [JsonIgnore]
         public ExtraType? ExtraType { get; set; }
 
         [JsonIgnore]
         public bool IsThemeMedia => ExtraType.HasValue && (ExtraType.Value == Model.Entities.ExtraType.ThemeSong || ExtraType.Value == Model.Entities.ExtraType.ThemeVideo);
 
-        [JsonIgnore]
         public string OriginalTitle { get; set; }
 
         /// <summary>
         /// Gets or sets the id.
         /// </summary>
         /// <value>The id.</value>
-        [JsonIgnore]
         public Guid Id { get; set; }
 
-        [JsonIgnore]
         public Guid OwnerId { get; set; }
 
         /// <summary>
@@ -222,7 +205,6 @@ namespace MediaBrowser.Controller.Entities
         /// Gets or sets the path.
         /// </summary>
         /// <value>The path.</value>
-        [JsonIgnore]
         public virtual string Path { get; set; }
 
         [JsonIgnore]
@@ -261,7 +243,6 @@ namespace MediaBrowser.Controller.Entities
         /// Gets or sets the name of the service.
         /// </summary>
         /// <value>The name of the service.</value>
-        [JsonIgnore]
         public string ServiceName { get; set; }
 
         /// <summary>
@@ -270,13 +251,10 @@ namespace MediaBrowser.Controller.Entities
         /// <remarks>
         /// If this content came from an external service, the id of the content on that service.
         /// </remarks>
-        [JsonIgnore]
         public string ExternalId { get; set; }
 
-        [JsonIgnore]
         public string ExternalSeriesId { get; set; }
 
-        [JsonIgnore]
         public virtual bool IsHidden => false;
 
         /// <summary>
@@ -319,10 +297,8 @@ namespace MediaBrowser.Controller.Entities
             }
         }
 
-        [JsonIgnore]
         public bool IsFileProtocol => PathProtocol == MediaProtocol.File;
 
-        [JsonIgnore]
         public bool HasPathProtocol => PathProtocol.HasValue;
 
         [JsonIgnore]
@@ -353,7 +329,6 @@ namespace MediaBrowser.Controller.Entities
             }
         }
 
-        [JsonIgnore]
         public virtual bool EnableAlphaNumericSorting => true;
 
         public virtual bool IsHD => Height >= 720;
@@ -382,36 +357,30 @@ namespace MediaBrowser.Controller.Entities
         /// Gets or sets the date created.
         /// </summary>
         /// <value>The date created.</value>
-        [JsonIgnore]
         public DateTime DateCreated { get; set; }
 
         /// <summary>
         /// Gets or sets the date modified.
         /// </summary>
         /// <value>The date modified.</value>
-        [JsonIgnore]
         public DateTime DateModified { get; set; }
 
         public DateTime DateLastSaved { get; set; }
 
-        [JsonIgnore]
         public DateTime DateLastRefreshed { get; set; }
 
-        [JsonIgnore]
         public bool IsLocked { get; set; }
 
         /// <summary>
         /// Gets or sets the locked fields.
         /// </summary>
         /// <value>The locked fields.</value>
-        [JsonIgnore]
         public MetadataField[] LockedFields { get; set; }
 
         /// <summary>
         /// Gets the type of the media.
         /// </summary>
         /// <value>The type of the media.</value>
-        [JsonIgnore]
         public virtual string MediaType => null;
 
         [JsonIgnore]
@@ -442,7 +411,6 @@ namespace MediaBrowser.Controller.Entities
             }
         }
 
-        [JsonIgnore]
         public Guid ParentId { get; set; }
 
         /// <summary>
@@ -1695,9 +1663,9 @@ namespace MediaBrowser.Controller.Entities
             return GetType().Name;
         }
 
-        public BaseItemKind GetBaseItemKind()
+        public BaseItemKind BaseItemKind
         {
-            return _baseItemKind ??= Enum.Parse<BaseItemKind>(GetClientTypeName());
+            get { return _baseItemKind ??= Enum.Parse<BaseItemKind>(GetClientTypeName()); }
         }
 
         /// <summary>

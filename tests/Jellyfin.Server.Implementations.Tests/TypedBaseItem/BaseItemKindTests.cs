@@ -44,7 +44,7 @@ namespace Jellyfin.Server.Implementations.Tests.TypedBaseItem
         {
             var defaultConstructor = baseItemDescendantType.GetConstructor(Type.EmptyTypes);
             var instance = (MediaBrowser.Controller.Entities.BaseItem)defaultConstructor!.Invoke(null);
-            var exception = Record.Exception(() => instance.GetBaseItemKind());
+            var exception = Record.Exception(() => instance.BaseItemKind);
             Assert.Null(exception);
         }
 

@@ -192,7 +192,7 @@ namespace Jellyfin.Api.Controllers
 
         private bool FilterItem(BaseItem f, IReadOnlyCollection<BaseItemKind> excludeItemTypes, IReadOnlyCollection<BaseItemKind> includeItemTypes, IReadOnlyCollection<string> mediaTypes)
         {
-            var baseItemKind = f.GetBaseItemKind();
+            var baseItemKind = f.BaseItemKind;
             // Exclude item types
             if (excludeItemTypes.Count > 0 && excludeItemTypes.Contains(baseItemKind))
             {

@@ -881,7 +881,7 @@ namespace Emby.Server.Implementations.Dto
                 dto.Taglines ??= Array.Empty<string>();
             }
 
-            dto.Type = item.GetBaseItemKind();
+            dto.Type = item.BaseItemKind;
             if ((item.CommunityRating ?? 0) > 0)
             {
                 dto.CommunityRating = item.CommunityRating;
